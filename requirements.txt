@@ -1,0 +1,7 @@
+aiohttp==3.11.13
+validators==0.34.0
+pandas==2.2.3
+tqdm==4.67.1
+chardet==5.2.0
+beautifulsoup4==4.13.3
+snowflake-connector-python==3.14.0
