@@ -109,15 +109,21 @@ async def fetch_all(urls):
 
 
 ### Run async fetcher and store results in Snowflake
-def main(country_code):
-    ### Load website links from Snowflake
-    query = f"""
-        SELECT DISTINCT COUNTRY, WEBSITE_URL
-        FROM DATABASE.SCHEMA.WEBSITES_INITIAL_TABLE
-        WHERE COUNTRY = '{country_code}'
-    """
-    website_df = snowflake_manager.fetch_data(query)
-    website_links = [(row["WEBSITE_URL"], row["COUNTRY"]) for _, row in website_df.iterrows()]
+def main(country_code, use_snowflake):
+    if use_snowflake:
+        ### Load website links from Snowflake
+        query = f"""
+            SELECT DISTINCT COUNTRY, WEBSITE_URL
+            FROM DATABASE.SCHEMA.WEBSITES_INITIAL_TABLE
+            WHERE COUNTRY = '{country_code}'
+        """
+        website_df = snowflake_manager.fetch_data(query)
+        website_links = [(row["WEBSITE_URL"], row["COUNTRY"]) for _, row in website_df.iterrows()]
+    else:
+        ### Load website links from local CSV
+        website_df = pd.read_csv(f"{HOME}/../data/websites_initial_table.csv")
+        website_df = website_df[website_df["COUNTRY"] == country_code]
+        website_links = list(zip(website_df["WEBSITE_URL"], website_df["COUNTRY"]))
     print(f"Total websites to process for {country_code}: {len(website_links)}")
 
     total_batches = len(website_links) // BATCH_SIZE + 1
@@ -142,14 +148,20 @@ def main(country_code):
         df_results = pd.DataFrame(results, columns=["website", "html_content", "status", "country"])
         df_results["extracted_at"] = datetime.now()
 
-        # Save to Snowflake table (append mode)
-        csv_path = snowflake_manager.write_csv_local(df_results, f"WEBSITE_SCRAPED_DATA_{country_code}")
-        snowflake_manager.write_table(
-            table_name=f"WEBSITE_SCRAPED_DATA_{country_code}",
-            csv_file_path=csv_path,
-            dataset=df_results,
-            overwrite=False  # Ensures APPEND instead of OVERWRITE
-        )
+        if use_snowflake:
+            # Save to Snowflake table (append mode)
+            csv_path = snowflake_manager.write_csv_local(df_results, f"WEBSITE_SCRAPED_DATA_{country_code}", path_to_save=f"{HOME}/../data")
+            snowflake_manager.write_table(
+                table_name=f"WEBSITE_SCRAPED_DATA_{country_code}",
+                csv_file_path=csv_path,
+                dataset=df_results,
+                overwrite=False  # Ensures APPEND instead of OVERWRITE
+            )
+        else:
+            # Save to local CSV file
+            csv_path = f"{HOME}/../data/website_scraped_data_{country_code}.csv"
+            df_results.to_csv(csv_path, mode='a', index=False, header=not batch_num)
+            print(f"Results saved on CSV path: {csv_path}")
 
         print(f"Batch {batch_num + 1} complete! Data APPENDED to Snowflake.")
 
@@ -160,5 +172,6 @@ def main(country_code):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Fetch website content')
     parser.add_argument('-c', '--country_code',    default='BRA',   help='country to fetch website content for')
+    parser.add_argument('--use_snowflake', action='store_true', help='if set, read/write from Snowflake; otherwise use CSV files')
     args = parser.parse_args()
-    main(args.country_code)
+    main(args.country_code, use_snowflake=args.use_snowflake)
