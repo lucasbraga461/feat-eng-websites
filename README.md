@@ -111,6 +111,11 @@ This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for d
 
 ---
 
+**Disclaimer:**  
+The screenshots and figures in this repository (e.g. of Snowflake query results) have been created by the author. None of the numbers are drawn from real business data but were manually generated for illustrative purposes. Likewise, all SQL scripts are handcrafted examples; they are **not** extracted from any live environment but are designed to closely resemble what a company using **Snowflake** might encounter.
+
+---
+
 ## Author
 
 Developed by **Lucas Braga**, Data Scientist  
